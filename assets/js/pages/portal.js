@@ -166,9 +166,9 @@ function deskCard(data) {
   const c = data.contact || {};
   const wa = c.whatsapp ? `https://wa.me/${String(c.whatsapp).replace(/\D/g, "")}` : null;
   const desk = data.desk?.name;
-  return `<section class="desk-card" aria-label="Your Diaspora Desk">
-    <h3>Your Diaspora Desk</h3>
-    <p>${desk ? `<strong>${escapeHtml(desk)}</strong> is your contact. The whole desk can help.` : "A Diaspora Desk officer looks after you."}</p>
+  return `<section class="desk-card" aria-label="Help from MKUYU">
+    <h3>Need help?</h3>
+    <p>${desk ? `<strong>${escapeHtml(desk)}</strong> is your MKUYU advisor. Write or call any time.` : "Your MKUYU advisor looks after you."}</p>
     ${c.email || wa ? `<ul>
       ${c.email ? `<li>${icon("file")}<a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></li>` : ""}
       ${wa ? `<li>${icon("handshake")}<a href="${escapeHtml(wa)}" target="_blank" rel="noopener">WhatsApp ${escapeHtml(c.whatsapp)}</a></li>` : ""}
@@ -215,7 +215,6 @@ function overview(data, services) {
         <p class="lede">${escapeHtml(lede)}</p>
         <div class="ov-chips">
           ${data.verification?.verified ? `<span class="ov-chip ov-chip--ok">${icon("check")} Identity verified</span>` : `<span class="ov-chip">${icon("clock")} Verification pending</span>`}
-          ${data.desk?.name ? `<span class="ov-chip">${icon("handshake")} ${escapeHtml(data.desk.name)}</span>` : ""}
           <span class="ov-chip">${icon("clock")} East Africa Time</span>
         </div>
       </div>
@@ -273,7 +272,7 @@ function nextStep(data, cases) {
     step = { tone: "action", icon: "file", title: "Your agreement is ready to sign", text: `${toSign.item.property.title}: read every clause, then sign electronically. Nothing is final until you sign.`, go: toSign.key, cta: "Read and sign" };
   } else if (due.some((d) => d.overdue)) {
     const d = due.find((x) => x.overdue);
-    step = { tone: "alert", icon: "card", title: "A payment is overdue", text: `${d.item.property.title}: ${formatMoney(d.item.payments.next_due.amount, d.item.payments.currency, { exact: true })}. Please pay to MKUYU's official account, or talk to your Diaspora Desk.`, go: d.key, cta: "See payments" };
+    step = { tone: "alert", icon: "card", title: "A payment is overdue", text: `${d.item.property.title}: ${formatMoney(d.item.payments.next_due.amount, d.item.payments.currency, { exact: true })}. Please pay to MKUYU's official account, or talk to your MKUYU advisor.`, go: d.key, cta: "See payments" };
   } else if (due.length) {
     const d = due[0];
     step = { tone: "calm", icon: "card", title: `Next payment due ${d.item.payments.next_due.date}`, text: `${d.item.property.title}: ${formatMoney(d.item.payments.next_due.amount, d.item.payments.currency, { exact: true })}. Your receipt appears here once Finance confirms it.`, go: d.key, cta: "See payments" };
@@ -282,7 +281,7 @@ function nextStep(data, cases) {
   } else if (!cases.length && !data.requests_open) {
     step = { tone: "action", icon: "search", title: "Choose your property", text: "Browse what MKUYU has available and press Request. We already have your details.", go: "browse", cta: "Browse properties" };
   } else if (!cases.length) {
-    step = { tone: "calm", icon: "clock", title: "The Diaspora Desk has your request", text: "Our team will contact you, usually within one working day. You can follow it under My requests.", go: "requests", cta: "My requests" };
+    step = { tone: "calm", icon: "clock", title: "We have your request", text: "Our team will contact you, usually within one working day. You can follow it under My requests.", go: "requests", cta: "My requests" };
   } else {
     step = { tone: "calm", icon: "check", title: "You are all up to date", text: "Nothing needs your attention right now. We will show the next step here.", go: null };
   }
@@ -410,8 +409,8 @@ function legacyJourney(data, cases) {
   const steps = [
     { label: "Create your account", state: "done" },
     { label: "Verify your identity", note: v.verified ? "Verified" : v.message, state: v.verified ? "done" : "current", go: v.verified ? null : "verify", cta: "Upload documents" },
-    { label: "Choose a property", note: chose ? `${data.requests_open || 0} request${data.requests_open === 1 ? "" : "s"} with the Desk` : v.verified ? "Browse and press Request; the Desk contacts you" : "Opens once your identity is verified", state: chose ? "done" : v.verified ? "current" : "open", go: "browse", cta: chose ? "Browse more" : "Browse properties" },
-    { label: "Read and sign your agreement", note: signed ? "Signed" : toSign ? "Your agreement is ready to sign" : "The Desk prepares it once you have chosen", state: signed ? "done" : toSign ? "current" : "upcoming", go: toSign ? cases.find(({ item }) => item.signing?.required)?.key : null, cta: "Read and sign" },
+    { label: "Choose a property", note: chose ? `${data.requests_open || 0} request${data.requests_open === 1 ? "" : "s"} with MKUYU` : v.verified ? "Browse and press Request; our team contacts you" : "Opens once your identity is verified", state: chose ? "done" : v.verified ? "current" : "open", go: "browse", cta: chose ? "Browse more" : "Browse properties" },
+    { label: "Read and sign your agreement", note: signed ? "Signed" : toSign ? "Your agreement is ready to sign" : "We prepare it once you have chosen", state: signed ? "done" : toSign ? "current" : "upcoming", go: toSign ? cases.find(({ item }) => item.signing?.required)?.key : null, cta: "Read and sign" },
     { label: "Pay and follow construction", note: active ? "Payments, receipts and photos are in your purchase" : "Pay only to MKUYU's official account shown here", state: active ? "current" : "upcoming", go: active ? cases.find(({ item }) => item.payments)?.key : null, cta: "Open" },
   ];
   return `<section class="journey-steps">
