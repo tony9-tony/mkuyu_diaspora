@@ -58,6 +58,12 @@ const verifiedTick = (v, { label = true } = {}) => v?.verified
   ? `<span class="verified-badge" role="img" aria-label="Verified" title="Identity verified by MKUYU"><svg class="verified-seal" viewBox="0 0 24 24" aria-hidden="true"><path d="${SEAL_PATH}" fill="currentColor"/><path d="M7.4 12.4l3.1 3.1 6.1-6.5" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>${label ? `<span class="verified-text">Verified</span>` : ""}</span>`
   : "";
 
+/** The workspace scrolls inside <main> on computers, the whole page on phones. */
+const scroller = () => { const m = document.getElementById("main"); return m && getComputedStyle(m).overflowY === "auto" ? m : null; };
+const scrollTopNow = (behavior = "smooth") => { const m = scroller(); if (m) m.scrollTo({ top: 0, behavior }); else window.scrollTo({ top: 0, behavior }); };
+const scrollPos = () => { const m = scroller(); return m ? m.scrollTop : window.scrollY; };
+const scrollRestore = (top) => { const m = scroller(); if (m) m.scrollTo({ top, behavior: "instant" }); else scrollRestore(top); };
+
 function render(host, data, demoKey) {
   currentVerification = data.verification || { verified: true, nationality_confirmed: true };
   const services = Object.keys(SECTIONS).filter((key) => (data.services?.[key] || []).length);
@@ -81,6 +87,7 @@ function render(host, data, demoKey) {
       ${DEMO_PORTAL_KEYS.map((key) => `<a class="btn btn--small ${key === demoKey ? "btn--primary" : "btn--soft"}" href="?demo=${key}" ${key === demoKey ? 'aria-current="page"' : ""}>${escapeHtml(demoPortal(key).label)}</a>`).join("")}</div>` : ""}
     <div class="portal">
       <aside class="portal-side">
+        <a class="portal-logo" href="#overview" aria-label="MKUYU Diaspora Portal"><img src="assets/images/brand/mkuyu-logo-192.png" alt="" width="40" height="40" /><span><strong>MKUYU AFRICA</strong><small>Diaspora Portal</small></span></a>
         <nav class="portal-nav" aria-label="Portal sections">
           <div class="portal-brand"><span class="avatar" aria-hidden="true">${escapeHtml(initials(name))}</span><div><strong>${escapeHtml(name)}${verifiedTick(data.verification || { verified: true }, { label: false })}</strong><span>${data.diaspora ? "Diaspora customer" : "Customer"}${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span></div></div>
           ${groups.filter((g) => g.tabs.length).map((g) => `<div class="portal-nav-group"><span class="portal-nav-label">${escapeHtml(g.label)}</span>
@@ -105,7 +112,9 @@ function render(host, data, demoKey) {
       if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     panel.setAttribute("aria-labelledby", `tab-${key}`);
-    if (scroll) window.scrollTo({ top: 0, behavior: "smooth" });
+    if (scroll) scrollTopNow();
+    const titleSlot = document.querySelector("[data-portal-title]");
+    if (titleSlot) { const group = groups.find((g) => g.tabs.some((t) => t.key === key)); const tab = tabs.find((t) => t.key === key); titleSlot.innerHTML = `<span>${escapeHtml(group?.label || "")}</span><strong>${escapeHtml(tab?.label || "")}</strong>`; }
     const wire = () => {
       panel.querySelectorAll("[data-goto]").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); browsePreset = a.dataset.service || ""; go(a.dataset.goto); }));
       panel.querySelectorAll("[data-sign]").forEach((button) => button.addEventListener("click", () => openAgreement(button.closest("[data-signing]"), button.dataset.sign, () => show(key))));
@@ -447,9 +456,9 @@ async function verifyPanel(panel, show, { uploaded = null } = {}) {
       const label = (kinds[form.kind.value] || "Document").split(" (")[0];
       await uploadVerificationDocument(form.kind.value, file, form.expires_on.value);
       // Redraw this section in place: no jump to the top of the page.
-      const top = window.scrollY;
+      const top = scrollPos();
       await verifyPanel(panel, show, { uploaded: label });
-      window.scrollTo({ top, behavior: "instant" });
+      scrollRestore(top);
       panel.querySelector("[data-uploaded]")?.focus({ preventScroll: true });
     }
     catch (error) { out.hidden = false; out.innerHTML = `<p class="notice">${icon("info")}<span>${escapeHtml(error.message || "Upload failed.")}</span></p>`; button.disabled = false; button.textContent = "Upload"; }
