@@ -64,6 +64,33 @@ const scrollTopNow = (behavior = "smooth") => { const m = scroller(); if (m) m.s
 const scrollPos = () => { const m = scroller(); return m ? m.scrollTop : window.scrollY; };
 const scrollRestore = (top) => { const m = scroller(); if (m) m.scrollTo({ top, behavior: "instant" }); else scrollRestore(top); };
 
+/** Does this customer still have documents to send (or send again)? */
+const needsUpload = (v) => Boolean(v && !v.verified && (v.needs_upload ?? ["unverified", "rejected"].includes(v.status)));
+/** The documents still missing, listed plainly. Used on every page and in Verify. */
+function missingDocs(v) {
+  const list = v?.required || [{ kind: "passport", label: "Passport (photo page) or NIDA", required: true, have: false }, { kind: "residence", label: "Proof of residence abroad (visa, residence card or permit)", required: true, have: false }];
+  return list;
+}
+function docChecklist(v) {
+  return `<ul class="need-docs">${missingDocs(v).map((d) => `<li class="${d.have ? "is-have" : d.required ? "is-missing" : "is-optional"}">
+      <span class="need-ic">${icon(d.have ? "check" : "file")}</span><span class="need-name">${escapeHtml(d.label)}</span>
+      <small>${d.have ? "Uploaded" : d.required ? "Missing: please upload" : "Recommended"}</small></li>`).join("")}</ul>`;
+}
+/** The loud banner shown on every page while documents are missing. */
+function attentionBar(data) {
+  const v = data.verification;
+  if (!needsUpload(v)) return "";
+  const rejected = v.status === "rejected";
+  const missing = missingDocs(v).filter((d) => d.required && !d.have).length;
+  return `<section class="attention-bar${rejected ? " is-rejected" : ""}" role="alert" aria-label="Action needed">
+    <span class="dot dot--alert dot--big" aria-hidden="true"></span>
+    <div class="attention-body"><strong>${rejected ? "Action needed: your documents were sent back" : "Action needed: upload your documents"}</strong>
+      ${v.note ? `<p><em>Note from MKUYU:</em> ${escapeHtml(v.note)}</p>` : `<p>${escapeHtml(v.message || "We need these documents before you can request a property.")}</p>`}
+      ${docChecklist(v)}</div>
+    <a class="btn btn--primary" href="#verify" data-goto="verify">${missing === 1 ? "Upload the missing document" : "Upload documents"} ${icon("arrow")}</a>
+  </section>`;
+}
+
 function render(host, data, demoKey) {
   currentVerification = data.verification || { verified: true, nationality_confirmed: true };
   const services = Object.keys(SECTIONS).filter((key) => (data.services?.[key] || []).length);
@@ -74,7 +101,7 @@ function render(host, data, demoKey) {
     { label: "Find a property", tabs: [{ key: "browse", label: "Browse & request", icon: "search" },
       { key: "requests", label: "My requests", icon: "file", count: data.requests_open || 0 }] },
     { label: "Account", tabs: [{ key: "messages", label: "Messages", icon: "chat", count: data.messages_unread || 0 },
-      ...(needsVerify ? [{ key: "verify", label: "Verify my identity", icon: "shield", alert: true }] : []),
+      ...(needsVerify ? [{ key: "verify", label: "Verify my identity", icon: "shield", alert: needsUpload(data.verification) }] : []),
       { key: "account", label: "My account", icon: "user" }] },
   ];
   const tabs = groups.flatMap((g) => g.tabs);
@@ -92,14 +119,14 @@ function render(host, data, demoKey) {
           <div class="portal-brand"><span class="avatar" aria-hidden="true">${avatarInner(name, data.customer?.photo_url)}</span><div><strong>${escapeHtml(name)}${verifiedTick(data.verification || { verified: true }, { label: false })}</strong><span>${data.diaspora ? "Diaspora customer" : "Customer"}${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span></div></div>
           ${groups.filter((g) => g.tabs.length).map((g) => `<div class="portal-nav-group"><span class="portal-nav-label">${escapeHtml(g.label)}</span>
             ${g.tabs.map((tab) => `<a href="#${tab.key}" id="tab-${tab.key}" data-tab="${tab.key}" class="${tab.alert ? "is-alert" : ""}">
-              ${icon(tab.icon)}<span>${escapeHtml(tab.label)}</span>${tab.count ? `<span class="count">${tab.count}</span>` : tab.alert ? `<span class="dot" aria-label="Action needed"></span>` : ""}</a>`).join("")}</div>`).join("")}
+              ${icon(tab.icon)}<span>${escapeHtml(tab.label)}</span>${tab.count ? `<span class="count">${tab.count}</span>` : tab.alert ? `<span class="dot dot--alert" aria-label="Action needed"></span>` : ""}</a>`).join("")}</div>`).join("")}
         </nav>
         ${deskCard(data)}
       </aside>
       <div id="panel" class="portal-panel" tabindex="-1" aria-live="polite"></div>
     </div>
     <nav class="portal-tabbar" aria-label="Portal sections">
-      ${tabs.map((tab) => `<a href="#${tab.key}" data-tab="${tab.key}">${icon(tab.icon)}<span>${escapeHtml(shortLabel(tab))}</span>${tab.alert ? '<span class="dot" aria-hidden="true"></span>' : ""}</a>`).join("")}
+      ${tabs.map((tab) => `<a href="#${tab.key}" data-tab="${tab.key}">${icon(tab.icon)}<span>${escapeHtml(shortLabel(tab))}</span>${tab.alert ? '<span class="dot dot--alert" aria-hidden="true"></span>' : ""}</a>`).join("")}
     </nav>`;
 
   const panel = host.querySelector("#panel");
@@ -122,13 +149,13 @@ function render(host, data, demoKey) {
     if (PANEL_SECTIONS.includes(key)) {
       panel.innerHTML = `<div class="portal-loading" role="status"><span class="spinner" aria-hidden="true"></span>Loading…</div>`;
       const loaders = { browse: () => browse(panel, demoKey, go, data), verify: () => verifyPanel(panel, go), requests: () => myRequests(panel, demoKey), messages: () => messagesPanel(panel, data, demoKey), account: () => accountPanel(panel, data, demoKey, go) };
-      loaders[key]().then(wire).catch((error) => {
+      loaders[key]().then(() => { if (key !== "verify" && key !== "messages") panel.insertAdjacentHTML("afterbegin", attentionBar(data)); wire(); }).catch((error) => {
         panel.innerHTML = `<div class="empty"><h3>This could not be loaded</h3><p>${escapeHtml(error.message || "Please try again in a moment.")}</p><p><button type="button" class="btn btn--soft btn--small" data-retry>Try again</button></p></div>`;
         panel.querySelector("[data-retry]").addEventListener("click", () => show(key));
       });
       return;
     }
-    panel.innerHTML = key === "overview" ? overview(data, services) : sectionHead(key) + data.services[key].map((item) => caseCard(key, item)).join("");
+    panel.innerHTML = attentionBar(data) + (key === "overview" ? overview(data, services) : sectionHead(key) + data.services[key].map((item) => caseCard(key, item)).join(""));
     panel.style.animation = "none"; void panel.offsetWidth; panel.style.animation = "";
     initReveal(panel);
     wire();
@@ -436,6 +463,9 @@ async function verifyPanel(panel, show, { uploaded = null } = {}) {
     <div class="portal-greeting"><span class="eyebrow">Verify my identity</span><h1>${v.verified ? "You are verified" : "Prove who you are, once"}</h1>${verifiedTick(v)}
       <p class="lede" style="margin:0">${escapeHtml(v.message || "")}</p></div>
     ${v.note ? `<p class="notice">${icon("info")}<span><strong>Note from MKUYU:</strong> ${escapeHtml(v.note)}</span></p>` : ""}
+    ${canUpload && !v.verified ? `<section class="attention-bar${v.status === "rejected" ? " is-rejected" : ""}" aria-label="Documents you must upload">
+      <span class="dot dot--alert dot--big" aria-hidden="true"></span>
+      <div class="attention-body"><strong>Documents you must upload</strong><p>Upload each one below. When both required documents are in, our team checks them and e-mails you.</p>${docChecklist({ required: ["passport", "residence", "selfie"].filter((k) => kinds[k]).map((k) => ({ kind: k, label: kinds[k], required: k !== "selfie", have: have(k) })) })}</div></section>` : ""}
     <ol class="timeline">
       ${[["Upload passport and proof of residence", ["submitted", "desk_checked", "verified"].includes(v.status) ? "done" : "current"],
          ["The Diaspora Desk verifies you", ["submitted", "desk_checked"].includes(v.status) ? "current" : v.status === "verified" ? "done" : "upcoming"],
