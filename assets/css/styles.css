@@ -1445,7 +1445,7 @@ img, video, svg { max-width: 100%; }
 }
 
 /* Diaspora Portal home */
-.dh-hero { color: var(--on-dark); background: linear-gradient(rgba(22,19,15,.72), rgba(22,19,15,.82)), url("../images/hero/mkuyu-project-01-1280.jpg") center / cover no-repeat; padding: clamp(3rem, 9vw, 7rem) 0; }
+.dh-hero { color: var(--on-dark); background: linear-gradient(rgba(22,19,15,.72), rgba(22,19,15,.82)), url("../images/hero/aerial-homes.jpg") center / cover no-repeat, url("../images/hero/mkuyu-project-01-1280.jpg") center / cover no-repeat; padding: clamp(3rem, 9vw, 7rem) 0; }
 .dh-hero-inner { max-width: 760px; }
 .dh-hero h1 { color: var(--on-dark); font-size: clamp(2.2rem, 7vw, 4rem); margin: .4rem 0 1rem; }
 .dh-hero .lede { color: var(--on-dark-soft); font-size: clamp(1rem, 2.4vw, 1.2rem); max-width: 56ch; }
