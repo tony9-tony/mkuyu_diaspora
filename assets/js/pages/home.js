@@ -1,12 +1,15 @@
-/* Home hero: real photographs fade into each other (CSS). If a video is added at
-   assets/media/hero.mp4 it plays over them; when the file is missing the video is
-   simply removed and the photos carry on. */
-export default function home() {
+/* Home hero: the photograph is in CSS. If a video exists at assets/media/hero.mp4 it fades in
+   over it; without the file nothing changes (one quiet check, no repeated requests). */
+export default async function home() {
   const video = document.querySelector(".dh-video");
   if (!video) return;
-  const drop = () => video.remove();
-  video.addEventListener("error", drop, true);
-  video.querySelectorAll("source").forEach((s) => s.addEventListener("error", () => { if (![...video.querySelectorAll("source")].some((x) => x !== s)) drop(); }));
+  const src = video.dataset.src;
+  try {
+    const head = await fetch(src, { method: "HEAD", cache: "no-store" });
+    if (!head.ok || !/video/.test(head.headers.get("content-type") || "")) throw new Error("no video");
+  } catch { video.remove(); return; }
+  video.src = src;
   video.addEventListener("canplay", () => { video.classList.add("is-on"); video.play().catch(() => {}); }, { once: true });
-  fetch(video.querySelector("source")?.src || "", { method: "HEAD" }).then((r) => { if (!r.ok) drop(); }).catch(drop);
+  video.addEventListener("error", () => video.remove(), { once: true });
+  video.load();
 }
