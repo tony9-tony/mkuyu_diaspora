@@ -1,0 +1,28 @@
+/* Finishing touches (kept apart from styles.css). */
+
+/* Home: the Sell picture. */
+.feature-illus { display: block; width: 100%; height: auto; border-radius: var(--r-xl, 22px); box-shadow: 0 24px 60px rgba(22, 19, 15, .16); background: #f6efe4; }
+
+/* Home: live numbers from the sales team. */
+.live-stats { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .5rem; margin: 1rem 0 0; font-size: .92rem; color: var(--ink-soft); }
+.live-stats[hidden] { display: none; }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: #3f9b62; box-shadow: 0 0 0 0 rgba(63, 155, 98, .5); animation: live-pulse 2.2s infinite; }
+.live-stats strong { color: var(--brand-900); font-weight: 700; font-variant-numeric: tabular-nums; }
+.live-stats a { text-decoration: none; padding: .2rem .7rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); transition: border-color .2s; }
+.live-stats a:hover { border-color: var(--brand-900); }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(63, 155, 98, .45); } 70% { box-shadow: 0 0 0 9px rgba(63, 155, 98, 0); } 100% { box-shadow: 0 0 0 0 rgba(63, 155, 98, 0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+
+/* Property page on a phone: price and Request always within reach. */
+.request-bar { display: none; }
+.request-bar[hidden] { display: none !important; }
+@media (max-width: 860px) {
+  .request-bar { display: flex; align-items: center; justify-content: space-between; gap: .8rem; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: .7rem 16px calc(.7rem + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, .96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line); box-shadow: 0 -10px 30px rgba(22, 19, 15, .08); transform: translateY(110%); transition: transform .3s ease; }
+  .request-bar.is-shown { transform: none; }
+  .request-bar strong { display: block; font-size: 1.15rem; color: var(--brand-900); font-variant-numeric: tabular-nums; }
+  .request-bar small { color: var(--muted); font-size: .78rem; }
+  .request-bar .btn { white-space: nowrap; }
+  body.has-request-bar .chat-launcher { bottom: 88px; }
+}

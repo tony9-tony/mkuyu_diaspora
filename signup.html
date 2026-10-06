@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Create an account · MKUYU Diaspora Portal</title>
+  <meta name="description" content="Create your MKUYU Diaspora Portal account to buy or rent property in Tanzania from abroad and follow every step." />
+  <meta name="theme-color" content="#16130f" />
+  <meta property="og:title" content="Create an account · MKUYU Africa" />
+  <meta property="og:description" content="Create your MKUYU Diaspora Portal account to buy or rent property in Tanzania from abroad and follow every step." />
+  <meta property="og:type" content="website" />
+  <script>
+    document.documentElement.classList.add("js");
+    // Opened straight from disk (file://), browsers block the site's modules.
+    // Say so plainly instead of showing a half-working page.
+    if (location.protocol === "file:") document.addEventListener("DOMContentLoaded", function () {
+      document.documentElement.classList.remove("js");
+      var note = document.createElement("div");
+      note.setAttribute("role", "alert");
+      note.style.cssText = "position:fixed;inset:auto 1rem 1rem;z-index:9999;max-width:560px;margin:auto;padding:1.1rem 1.3rem;border-radius:14px;background:#16130f;color:#efe9e0;font:15px/1.55 system-ui,sans-serif;box-shadow:0 20px 50px rgba(0,0,0,.35)";
+      note.innerHTML = "<strong style='color:#dcc3a0'>This page was opened from a file, so it cannot run.</strong><br>Close it and double-click <b>Open MKUYU site.cmd</b> in the mkuyu_ui folder, or run <code>node serve.mjs</code> and open <b>http://localhost:5500</b>.";
+      document.body.appendChild(note);
+    });
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/images/brand/favicon-64.png" />
+  <link rel="apple-touch-icon" href="assets/images/brand/mkuyu-logo-192.png" />
+  <meta property="og:image" content="assets/images/brand/mkuyu-logo.png" />
+  <script type="module" src="assets/js/app.js"></script>
+</head>
+<body data-page="signup">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html" aria-label="MKUYU Diaspora Portal, home">
+        <img class="logo" src="assets/images/brand/mkuyu-logo-192.png" alt="" width="46" height="46" />
+        <span class="brand-text"><span class="brand-name">MKUYU AFRICA</span><span class="brand-sub">Diaspora Portal</span></span>
+      </a>
+      <nav class="nav" id="primary-nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="login.html" class="nav-diaspora">Sign in</a>
+        <a href="signup.html">Create account</a>
+      </nav>
+      <div class="header-cta">
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="auth">
+      <aside class="auth-aside auth-aside--photo">
+        <img class="logo" src="assets/images/brand/mkuyu-logo-192.png" alt="MKUYU" width="78" height="78" />
+        <span class="eyebrow">Miliki Ardhi Diaspora</span>
+        <h2>Own property at home while you live abroad</h2>
+        <p>Browse and request any MKUYU property from abroad. Once verified, follow your contract, payments and construction here.</p>
+        <ul>
+          <li><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span>A dedicated Diaspora Desk that answers by e-mail or WhatsApp</span></li>
+          <li><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span>Your money goes to MKUYU's bank account, never through relatives</span></li>
+          <li><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span>Receipts and construction photos in one place</span></li>
+        </ul>
+      </aside>
+      <div class="auth-main">
+        <div class="auth-card">
+          <img class="logo" src="assets/images/brand/mkuyu-logo-192.png" alt="MKUYU" width="56" height="56" />
+          <h1>Diaspora sign-up</h1>
+          <p class="lede">For people living outside Tanzania. Three short steps.</p>
+          <form id="signup-form" class="panel signup-wizard" method="post" novalidate>
+            <ol class="wizard-steps" aria-label="Sign-up steps">
+              <li data-dot="1" class="is-current"><span>1</span>You</li>
+              <li data-dot="2"><span>2</span>Country</li>
+              <li data-dot="3"><span>3</span>Password</li>
+            </ol>
+            <div data-step="1">
+              <div class="field"><label for="signup-name">Full name (as in your passport)</label><input id="signup-name" name="name" required autocomplete="name" maxlength="120" /></div>
+              <div class="field"><label for="signup-email">E-mail</label><input id="signup-email" name="email" type="email" required autocomplete="email" /></div>
+              <div class="field"><label for="signup-username">Username</label><input id="signup-username" name="username" required minlength="3" maxlength="30" autocomplete="username" pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,29}" /><p class="field-hint">You sign in with it (or your e-mail).</p></div>
+            </div>
+            <div data-step="2" hidden>
+              <div class="field"><label for="signup-nationality">Nationality</label><select id="signup-nationality" name="nationality" required><option value="">Choose…</option></select>
+                <p class="field-hint">Legal confirms it from your documents.</p></div>
+              <div class="field"><label for="signup-residence">Country where you live</label><select id="signup-residence" name="residence" required><option value="">Choose…</option></select></div>
+              <div class="field"><label for="signup-phone">Phone / WhatsApp</label><input id="signup-phone" name="phone" type="tel" required autocomplete="tel" placeholder="Choose your country first" /><p class="field-hint" data-phone-hint>The country code is filled in from the country where you live.</p></div>
+            </div>
+            <div data-step="3" hidden>
+              <div class="field"><label for="signup-password">Password</label><input id="signup-password" name="password" type="password" required minlength="8" autocomplete="new-password" /><p class="field-hint">At least 8 characters, with letters and numbers.</p></div>
+              <div class="field"><label for="signup-confirm">Confirm password</label><input id="signup-confirm" name="confirm" type="password" required autocomplete="new-password" /></div>
+              <label class="field" style="display:flex;gap:.5rem;align-items:flex-start"><input type="checkbox" name="accept" required style="margin-top:.3rem" /><span>I agree that MKUYU may contact me and check the identity documents I upload.</span></label>
+            </div>
+            <div class="field" data-step="code" hidden><label for="signup-code">6-digit code from your e-mail</label><input id="signup-code" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" /></div>
+            <div class="wizard-actions">
+              <button class="btn btn--soft" type="button" data-back hidden>Back</button>
+              <button class="btn btn--primary" type="submit">Continue</button>
+            </div>
+            <div id="signup-result" hidden role="status" aria-live="polite"></div>
+          </form>
+          <p class="auth-switch">Already have an account? <a href="login.html">Diaspora login</a></p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+
+</body>
+</html>
