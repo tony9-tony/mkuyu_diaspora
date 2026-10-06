@@ -198,41 +198,66 @@ function overview(data, services) {
   const money = cases.filter(({ item }) => item.payments);
   const firstName = String(data.customer?.name || "").split(" ")[0];
   const unused = Object.keys(SECTIONS).filter((key) => !services.includes(key) && key !== "sell");
+  const steps = data.journey?.steps || [];
+  const done = steps.filter((s) => s.state === "done").length;
+  const pct = steps.length ? Math.round((done / steps.length) * 100) : 0;
+  const hour = new Date().getHours();
+  const hello = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const lede = cases.length
     ? `You are ${services.map((key) => SECTIONS[key].label.toLowerCase()).join(" and ")} with MKUYU. Everything here updates as our team moves your case forward.`
     : "Here is where you are, and what comes next.";
+  const kpi = (go, ic, value, label, extra = "") => `<a class="ov-kpi" href="#${go}" data-goto="${go}"><span class="ov-kpi-ic">${icon(ic)}</span><span class="ov-kpi-t"><strong>${value}</strong><small>${label}</small></span>${extra}</a>`;
   return `
-    <div class="panel-head panel-head--greeting">
-      <div><span class="eyebrow">My MKUYU${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span>
-      <h1>${cases.length ? "Welcome back" : "Welcome"}${firstName ? `, ${escapeHtml(firstName)}` : ""}</h1>
-      <p class="lede">${escapeHtml(lede)}</p>
-      ${data.verification?.verified ? `<p class="verified-line">${verifiedTick(data.verification)}<span>Your identity is verified. You can request any property.</span></p>` : ""}</div>
+    <section class="ov-hero">
+      <div class="ov-hero-text">
+        <span class="eyebrow">My MKUYU${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span>
+        <h1>${hello}${firstName ? `, ${escapeHtml(firstName)}` : ""}</h1>
+        <p class="lede">${escapeHtml(lede)}</p>
+        <div class="ov-chips">
+          ${data.verification?.verified ? `<span class="ov-chip ov-chip--ok">${icon("check")} Identity verified</span>` : `<span class="ov-chip">${icon("clock")} Verification pending</span>`}
+          ${data.desk?.name ? `<span class="ov-chip">${icon("handshake")} ${escapeHtml(data.desk.name)}</span>` : ""}
+          <span class="ov-chip">${icon("clock")} East Africa Time</span>
+        </div>
+      </div>
+      ${steps.length ? `<div class="ov-ring" role="img" aria-label="${done} of ${steps.length} steps done"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ov-ring-bg"/><circle cx="60" cy="60" r="52" class="ov-ring-fg" style="--p:${pct}"/></svg><div><strong>${done}/${steps.length}</strong><small>steps done</small></div></div>` : ""}
+    </section>
+
+    <div class="ov-kpis">
+      ${kpi("browse", "search", cases.length, cases.length === 1 ? "Property" : "Properties")}
+      ${kpi("requests", "file", data.requests_open || 0, "Open requests")}
+      ${kpi("messages", "chat", data.messages_unread || 0, "Unread messages")}
+      ${kpi(data.verification?.verified ? "account" : "verify", "shield", data.verification?.verified ? "Verified" : "Pending", "Identity")}
     </div>
-    ${nextStep(data, cases)}
 
-    ${money.length ? `<div class="stat-row">${money.map(({ item }) => {
-      const p = item.payments;
-      const pct = p.total ? Math.min(100, Math.round((p.paid / p.total) * 100)) : 0;
-      return `<div class="stat"><span>${escapeHtml(item.property.title)}</span><strong>${escapeHtml(formatMoney(p.balance, p.currency, { exact: true }))}</strong><small>Balance remaining · ${pct}% paid</small>
-          <div class="progress progress--thin" aria-hidden="true"><span style="width:${pct}%"></span></div></div>
-        ${p.next_due ? `<div class="stat"><span>Next payment</span><strong>${escapeHtml(formatMoney(p.next_due.amount, p.currency, { exact: true }))}</strong><small>Due ${escapeHtml(p.next_due.date)}</small></div>` : ""}`;
-    }).join("")}</div>` : ""}
-
-    ${data.diaspora ? diasporaJourney(data, cases) : ""}
-
-    ${cases.length ? `<section><h2 class="panel-subhead">Your properties</h2><div class="case-links">${cases.map(({ key, item }) => {
-      const photo = customerFileUrl(item.property.photo?.url) || item.property.photo?.url;
-      return `<a class="case-link" href="#${key}" data-goto="${key}" data-reveal>
-        <span class="case-link-art">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy">` : icon(SECTIONS[key].icon)}</span>
-        <span class="case-link-text"><strong>${escapeHtml(item.property.title)}</strong><span>${escapeHtml(SECTIONS[key].label)} · ${escapeHtml(item.status)}</span></span>
-        ${icon("arrow")}
-      </a>`;
-    }).join("")}</div></section>` : ""}
-
-    ${unused.length ? `<section><h2 class="panel-subhead">${cases.length ? "Looking for something else?" : "Start here"}</h2>
-      <div class="start-grid">${unused.map((key) => `<a class="start-tile" href="#browse" data-goto="browse" data-service="${key}" data-reveal>
-        <span class="feature-icon">${icon(SECTIONS[key].icon)}</span><strong>${escapeHtml(SECTIONS[key].start)}</strong><span>${escapeHtml(SECTIONS[key].startText)}</span></a>`).join("")}
-      </div></section>` : ""}`;
+    <div class="ov-grid">
+      <div class="ov-main">
+        ${nextStep(data, cases)}
+        ${data.diaspora ? diasporaJourney(data, cases) : ""}
+        ${unused.length ? `<section><h2 class="panel-subhead">${cases.length ? "Looking for something else?" : "Start here"}</h2>
+          <div class="start-grid">${unused.map((key) => `<a class="start-tile" href="#browse" data-goto="browse" data-service="${key}">
+            <span class="feature-icon">${icon(SECTIONS[key].icon)}</span><strong>${escapeHtml(SECTIONS[key].start)}</strong><span>${escapeHtml(SECTIONS[key].startText)}</span></a>`).join("")}
+          </div></section>` : ""}
+      </div>
+      <aside class="ov-side">
+        ${money.length ? `<section class="ov-card"><h2 class="ov-card-title">Payments</h2>${money.map(({ item }) => {
+          const p = item.payments;
+          const pc = p.total ? Math.min(100, Math.round((p.paid / p.total) * 100)) : 0;
+          return `<div class="ov-pay"><span>${escapeHtml(item.property.title)}</span><strong>${escapeHtml(formatMoney(p.balance, p.currency, { exact: true }))}</strong><small>Balance remaining · ${pc}% paid</small>
+            <div class="progress progress--thin" aria-hidden="true"><span style="width:${pc}%"></span></div>
+            ${p.next_due ? `<small class="ov-due">${icon("card")} Next: ${escapeHtml(formatMoney(p.next_due.amount, p.currency, { exact: true }))} · ${escapeHtml(p.next_due.date)}</small>` : ""}</div>`;
+        }).join("")}</section>` : ""}
+        <section class="ov-card"><h2 class="ov-card-title">Your properties</h2>
+          ${cases.length ? `<div class="case-links">${cases.map(({ key, item }) => {
+            const photo = customerFileUrl(item.property.photo?.url) || item.property.photo?.url;
+            return `<a class="case-link" href="#${key}" data-goto="${key}">
+              <span class="case-link-art">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy">` : icon(SECTIONS[key].icon)}</span>
+              <span class="case-link-text"><strong>${escapeHtml(item.property.title)}</strong><span>${escapeHtml(SECTIONS[key].label)} · ${escapeHtml(item.status)}</span></span>
+              ${icon("arrow")}
+            </a>`;
+          }).join("")}</div>` : `<p class="ov-empty">No property yet. Browse what MKUYU has and press Request.</p><a class="btn btn--soft btn--small" href="#browse" data-goto="browse">Browse properties ${icon("arrow")}</a>`}
+        </section>
+      </aside>
+    </div>`;
 }
 
 /** The ONE thing the customer should do now, said plainly, with one button. */

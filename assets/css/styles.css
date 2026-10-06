@@ -1543,7 +1543,7 @@ img, video, svg { max-width: 100%; }
   .portal { display: block; }
   .portal-panel { min-width: 0; }
 
-  .portal-side { position: fixed; z-index: 70; top: 0; bottom: 0; left: 0; max-height: none; width: var(--side-w); display: flex; flex-direction: column; gap: 1rem; padding: 1.1rem .85rem 1rem; overflow-y: auto; scrollbar-width: none; background: linear-gradient(180deg, #1b1611 0%, #120e0a 100%); border-right: 1px solid rgba(255,255,255,.06); }
+  .portal-side { position: fixed; z-index: 70; top: 0; bottom: 0; left: 0; max-height: none; height: 100vh; height: 100dvh; width: var(--side-w); display: flex; flex-direction: column; gap: 1rem; padding: 1.1rem .85rem 1rem; overflow-y: auto; scrollbar-width: none; background: linear-gradient(180deg, #1b1611 0%, #120e0a 100%); border-right: 1px solid rgba(255,255,255,.06); }
   .portal-side::-webkit-scrollbar { display: none; }
   .portal-logo { display: flex; align-items: center; gap: .7rem; padding: .2rem .5rem .95rem; border-bottom: 1px solid rgba(255,255,255,.08); color: #fff; text-decoration: none; }
   .portal-logo img { border-radius: 50%; background: #fff; flex: none; }
@@ -1576,3 +1576,44 @@ img, video, svg { max-width: 100%; }
   .portal-side .portal-nav { gap: .75rem; }
   .portal-side .portal-nav a { padding-block: .62rem; }
 }
+
+/* ---- Overview dashboard ---- */
+.ov-hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.8rem 2rem; border-radius: var(--r-xl); overflow: hidden; color: #fff; background: linear-gradient(100deg, rgba(20,15,10,.92) 8%, rgba(20,15,10,.55)), url("../images/hero/sunset-estate-m.jpg") center 35% / cover no-repeat; box-shadow: var(--shadow-md); }
+.ov-hero .eyebrow { color: var(--accent-400); }
+.ov-hero h1 { font-family: var(--display); font-size: clamp(1.9rem, 4.5vw, 2.7rem); font-weight: 600; margin: .2rem 0 .4rem; color: #fff; line-height: 1.1; }
+.ov-hero .lede { color: rgba(255,255,255,.82); max-width: 54ch; margin: 0 0 1rem; }
+.ov-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ov-chip { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .75rem; border-radius: 99px; font-size: .78rem; font-weight: 600; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(6px); }
+.ov-chip .icon { width: 14px; height: 14px; }
+.ov-chip--ok { background: rgba(80,180,120,.22); border-color: rgba(120,220,160,.45); }
+.ov-ring { position: relative; flex: none; width: 118px; height: 118px; }
+.ov-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ov-ring circle { fill: none; stroke-width: 9; }
+.ov-ring-bg { stroke: rgba(255,255,255,.18); }
+.ov-ring-fg { stroke: var(--accent-400); stroke-linecap: round; stroke-dasharray: 326.7; stroke-dashoffset: calc(326.7 * (1 - var(--p) / 100)); }
+.ov-ring div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ov-ring strong { font-size: 1.5rem; line-height: 1; }
+.ov-ring small { font-size: .68rem; opacity: .8; }
+.ov-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 1.1rem 0; }
+.ov-kpi { display: flex; align-items: center; gap: .85rem; padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg, 16px); color: var(--ink); text-decoration: none; box-shadow: var(--shadow-sm); transition: transform .2s, border-color .2s; }
+.ov-kpi:hover { color: var(--ink); border-color: var(--accent-400); transform: translateY(-2px); }
+.ov-kpi-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--accent-50); color: var(--accent-600); flex: none; }
+.ov-kpi-ic .icon { width: 20px; height: 20px; }
+.ov-kpi-t { display: grid; min-width: 0; }
+.ov-kpi-t strong { font-size: 1.35rem; line-height: 1.1; color: var(--brand-900); }
+.ov-kpi-t small { color: var(--muted); font-size: .78rem; }
+.ov-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 1.2rem; align-items: start; }
+.ov-main, .ov-side { display: grid; gap: 1.2rem; min-width: 0; }
+.ov-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg, 16px); padding: 1.2rem; box-shadow: var(--shadow-sm); }
+.ov-card-title { font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-600); margin: 0 0 .8rem; }
+.ov-pay { display: grid; gap: .2rem; }
+.ov-pay + .ov-pay { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line-soft, #eee7dc); }
+.ov-pay > span { color: var(--muted); font-size: .85rem; }
+.ov-pay > strong { font-size: 1.4rem; color: var(--brand-900); }
+.ov-pay small { color: var(--muted); }
+.ov-due { display: flex; align-items: center; gap: .35rem; margin-top: .3rem; color: var(--ink-soft); font-weight: 600; }
+.ov-due .icon { width: 14px; height: 14px; }
+.ov-empty { color: var(--muted); margin: 0 0 .8rem; font-size: .9rem; }
+.ov-main .start-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+@media (max-width: 1100px) { .ov-grid { grid-template-columns: 1fr; } .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .ov-hero { padding: 1.3rem 1.2rem; } .ov-ring { display: none; } .ov-kpi { padding: .8rem; } .ov-kpi-ic { width: 36px; height: 36px; } }
