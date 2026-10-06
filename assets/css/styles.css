@@ -1628,3 +1628,8 @@ img, video, svg { max-width: 100%; }
 .acc-photo-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .6rem; }
 .acc-photo-actions label { cursor: pointer; }
 @media (max-width: 480px) { .acc-photo { flex-direction: column; text-align: center; } .acc-photo-actions { justify-content: center; } }
+
+/* ---- Pending request state ---- */
+.pill--request { display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .8rem; font-weight: 700; }
+.pill--request .icon, .request-state .icon { width: 14px; height: 14px; }
+.request-state { display: inline-flex; align-items: center; gap: .3rem; justify-self: start; }

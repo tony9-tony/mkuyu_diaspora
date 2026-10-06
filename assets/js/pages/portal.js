@@ -842,6 +842,9 @@ const CONTACT_LABELS = { email: "E-mail", whatsapp: "WhatsApp", phone: "Phone ca
 let browsePreset = "";
 async function browse(panel, demoKey, show, data = {}) {
   const all = await listProperties();
+  // Properties the customer already asked about stay marked "Pending" until MKUYU answers.
+  const asked = new Map();
+  if (!demoKey) { try { (await getPortalRequests()).filter((r) => r.open && r.property_id).forEach((r) => asked.set(`${r.property_id}:${r.service}`, r.reference)); } catch { /* the list still works */ } }
   // Requests open only once MKUYU has verified who the customer is (the server
   // refuses them too). Until then the customer may look, not ask.
   const v = data.verification || { verified: true };
@@ -878,7 +881,7 @@ async function browse(panel, demoKey, show, data = {}) {
       }
       return true;
     });
-    list.innerHTML = rows.length ? rows.map((p) => listingCard(p, state.service, locked)).join("") : `<div class="empty"><h3>Nothing matches</h3><p>Change the filters, or tell us what you are looking for under My requests.</p></div>`;
+    list.innerHTML = rows.length ? rows.map((p) => listingCard(p, state.service, locked, asked)).join("") : `<div class="empty"><h3>Nothing matches</h3><p>Change the filters, or tell us what you are looking for under My requests.</p></div>`;
     initReveal(list);
   };
   panel.querySelectorAll("[data-f]").forEach((input) => input.addEventListener("input", () => { state[input.dataset.f] = input.value.trim(); draw(); }));
@@ -886,12 +889,12 @@ async function browse(panel, demoKey, show, data = {}) {
     const more = event.target.closest("[data-more]");
     if (more) { const box = more.closest(".listing").querySelector(".listing-more"); box.hidden = !box.hidden; more.textContent = box.hidden ? "More details" : "Less"; return; }
     const ask = event.target.closest("[data-ask]");
-    if (ask) openRequestForm(ask.closest(".listing"), all.find((p) => String(p.id) === ask.dataset.id), ask.dataset.ask, demoKey, show);
+    if (ask) openRequestForm(ask.closest(".listing"), all.find((p) => String(p.id) === ask.dataset.id), ask.dataset.ask, demoKey, show, (reference) => { asked.set(`${ask.dataset.id}:${ask.dataset.ask}`, reference); ask.replaceWith(Object.assign(document.createElement("span"), { className: "pill pill--pending pill--request", innerHTML: `${icon("clock")} Pending · ${escapeHtml(reference)}` })); });
   });
   draw();
 }
 
-function listingCard(p, onlyService, locked = false) {
+function listingCard(p, onlyService, locked = false, asked = new Map()) {
   const photo = p.photos?.[0];
   const services = p.services.filter((s) => canRequest(p, s) && (!onlyService || s === onlyService));
   const price = (s) => s === "buy" ? formatMoney(p.price.sale, p.currency) : `${formatMoney(p.price.rent?.amount, p.currency)}${p.price.rent?.period ? ` / ${p.price.rent.period}` : ""}`;
@@ -903,7 +906,7 @@ function listingCard(p, onlyService, locked = false) {
         <h2>${escapeHtml(p.title)}</h2>
         <p class="card-meta">${escapeHtml([p.location, p.type, facts].filter(Boolean).join(" · "))}</p>
         <p class="listing-prices">${services.map((s) => `<span><small>${s === "buy" ? "Buy" : "Rent"}</small> <strong>${escapeHtml(price(s))}</strong></span>`).join("")}</p>
-        <div class="listing-actions">${locked ? `<button type="button" class="btn btn--soft btn--small" disabled title="Available once your identity is verified">${icon("lock")} Request after verification</button>` : services.map((s) => `<button type="button" class="btn btn--primary btn--small" data-ask="${s}" data-id="${escapeHtml(String(p.id))}">Request to ${s === "buy" ? "buy" : "rent"}</button>`).join("")}
+        <div class="listing-actions">${locked ? `<button type="button" class="btn btn--soft btn--small" disabled title="Available once your identity is verified">${icon("lock")} Request after verification</button>` : services.map((s) => asked.has(`${p.id}:${s}`) ? `<span class="pill pill--pending pill--request" title="MKUYU has your request and will contact you">${icon("clock")} Pending · ${escapeHtml(asked.get(`${p.id}:${s}`))} · ${s === "buy" ? "buy" : "rent"}</span>` : `<button type="button" class="btn btn--primary btn--small" data-ask="${s}" data-id="${escapeHtml(String(p.id))}">Request to ${s === "buy" ? "buy" : "rent"}</button>`).join("")}
           <button type="button" class="btn btn--soft btn--small" data-more>More details</button></div>
       </div>
     </div>
@@ -913,7 +916,7 @@ function listingCard(p, onlyService, locked = false) {
   </article>`;
 }
 
-function openRequestForm(card, property, service, demoKey, show) {
+function openRequestForm(card, property, service, demoKey, show, onSent = () => {}) {
   if (!card || !property) return;
   const box = card.querySelector(".listing-form");
   box.hidden = false;
@@ -936,7 +939,8 @@ function openRequestForm(card, property, service, demoKey, show) {
     button.disabled = true;
     try {
       const answer = await submitPortalRequest({ propertyId: property.id, service, budget: form.budget.value, preferredContact: form.contact.value, message: form.message.value.trim() });
-      box.innerHTML = `<p class="notice">${icon("check")}<span><strong>Request ${escapeHtml(answer.reference)} sent.</strong> ${escapeHtml(answer.message || "")} <a href="#" data-see>See my requests</a></span></p>`;
+      onSent(answer.reference);
+      box.innerHTML = `<p class="notice">${icon("check")}<span><strong>Request ${escapeHtml(answer.reference)} is pending.</strong> ${escapeHtml(answer.message || "")} <a href="#" data-see>See my requests</a></span></p>`;
       box.querySelector("[data-see]").addEventListener("click", (e) => { e.preventDefault(); show("requests"); });
     } catch (error) {
       button.disabled = false;
@@ -949,9 +953,10 @@ function openRequestForm(card, property, service, demoKey, show) {
 async function myRequests(panel, demoKey) {
   const rows = demoKey ? [] : await getPortalRequests();
   panel.innerHTML = `<div class="portal-greeting"><span class="eyebrow">My requests</span><h1>What you asked for</h1>
-    <p class="lede" style="margin:0">Each request goes straight to the MKUYU Diaspora Desk. Its status updates here.</p></div>
+    <p class="lede" style="margin:0">Each request goes straight to our team. It shows Pending until we pick it up, and its status updates here.</p></div>
     ${rows.length ? `<ul class="request-list">${rows.map((r) => `<li class="request-card">
         <div class="request-top"><strong>${escapeHtml(r.property)}</strong><span class="pill pill--pending">${r.service === "rent" ? "Rent" : "Buy"}</span></div>
+        <span class="pill pill--${r.state === "pending" ? "pending" : r.state === "closed" ? "overdue" : "paid"} request-state">${r.state === "pending" ? icon("clock") + " Pending" : r.state === "closed" ? "Closed" : icon("check") + " In progress"}</span>
         ${r.location ? `<small>${escapeHtml(r.location)}</small>` : ""}
         <p class="request-status">${escapeHtml(r.status)}</p>
         <small class="request-meta">Ref ${escapeHtml(r.reference)} · sent ${escapeHtml(r.date || "")}</small></li>`).join("")}</ul>` : `<div class="empty"><h3>No request yet</h3><p>Browse MKUYU's properties and press Request on any of them.</p><p><a class="btn btn--primary btn--small" href="#browse" data-goto="browse">Browse properties ${icon("arrow")}</a></p></div>`}`;
