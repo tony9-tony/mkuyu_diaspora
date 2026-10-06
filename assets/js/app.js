@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initChrome();
   markSignedIn();
   const page = document.body.dataset.page;
-  if (!page || page === "home") return;
+  if (!page) return;
   try {
     const module = await import(`./pages/${page}.js`);
     await module.default?.();
