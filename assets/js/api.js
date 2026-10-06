@@ -344,6 +344,15 @@ export function customerFileUrl(path) {
   return path && path.startsWith("/customer/") ? `${API_BASE}${path}` : null;
 }
 
+export async function uploadProfilePhoto(file) {
+  const form = new FormData();
+  form.append("file", file);
+  return request("/customer/profile/photo", { method: "POST", body: form });
+}
+export async function removeProfilePhoto() {
+  return request("/customer/profile/photo", { method: "DELETE" });
+}
+
 export async function logOut() {
   if (ACCOUNTS_LIVE) await request("/customer/auth/logout", { method: "POST" }).catch(() => {});
 }

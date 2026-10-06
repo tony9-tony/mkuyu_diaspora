@@ -5,7 +5,7 @@
    Every stage, amount and document comes from the internal system; the portal
    only presents it. Where a business rule is still undecided, the data says
    so (see DEMO_PORTALS in data.js) instead of the portal inventing detail. */
-import { answerCall, endCall, startCall, setNotifyEmail, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
+import { answerCall, endCall, startCall, setNotifyEmail, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
 import { escapeHtml, formatMoney, icon, initReveal, photoPlaceholder } from "../ui.js";
 
 const SECTIONS = {
@@ -89,7 +89,7 @@ function render(host, data, demoKey) {
       <aside class="portal-side">
         <a class="portal-logo" href="#overview" aria-label="MKUYU Diaspora Portal"><img src="assets/images/brand/mkuyu-logo-192.png" alt="" width="40" height="40" /><span><strong>MKUYU AFRICA</strong><small>Diaspora Portal</small></span></a>
         <nav class="portal-nav" aria-label="Portal sections">
-          <div class="portal-brand"><span class="avatar" aria-hidden="true">${escapeHtml(initials(name))}</span><div><strong>${escapeHtml(name)}${verifiedTick(data.verification || { verified: true }, { label: false })}</strong><span>${data.diaspora ? "Diaspora customer" : "Customer"}${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span></div></div>
+          <div class="portal-brand"><span class="avatar" aria-hidden="true">${avatarInner(name, data.customer?.photo_url)}</span><div><strong>${escapeHtml(name)}${verifiedTick(data.verification || { verified: true }, { label: false })}</strong><span>${data.diaspora ? "Diaspora customer" : "Customer"}${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span></div></div>
           ${groups.filter((g) => g.tabs.length).map((g) => `<div class="portal-nav-group"><span class="portal-nav-label">${escapeHtml(g.label)}</span>
             ${g.tabs.map((tab) => `<a href="#${tab.key}" id="tab-${tab.key}" data-tab="${tab.key}" class="${tab.alert ? "is-alert" : ""}">
               ${icon(tab.icon)}<span>${escapeHtml(tab.label)}</span>${tab.count ? `<span class="count">${tab.count}</span>` : tab.alert ? `<span class="dot" aria-label="Action needed"></span>` : ""}</a>`).join("")}</div>`).join("")}
@@ -149,7 +149,7 @@ function fillHeader(data, demoKey) {
   const slot = document.querySelector("[data-portal-user]");
   if (!slot) return;
   const name = data.customer?.name || "";
-  slot.innerHTML = `${name ? `<span class="portal-user"><span class="avatar avatar--small" aria-hidden="true">${escapeHtml(initials(name))}</span><span class="portal-user-name">${escapeHtml(name)}</span>${verifiedTick(data.verification || { verified: true }, { label: false })}</span>` : ""}
+  slot.innerHTML = `${name ? `<span class="portal-user"><span class="avatar avatar--small" aria-hidden="true">${avatarInner(name, data.customer?.photo_url)}</span><span class="portal-user-name">${escapeHtml(name)}</span>${verifiedTick(data.verification || { verified: true }, { label: false })}</span>` : ""}
     ${ACCOUNTS_LIVE && !demoKey ? `<button type="button" class="btn btn--soft btn--small" data-logout>${icon("lock")}<span>Log out</span></button>` : ""}`;
   slot.querySelector("[data-logout]")?.addEventListener("click", async (event) => {
     event.currentTarget.disabled = true;
@@ -158,6 +158,8 @@ function fillHeader(data, demoKey) {
   });
 }
 
+/** The customer's picture when they have one, otherwise their initials. */
+const avatarInner = (name, url) => { const src = customerFileUrl(url); return src ? `<img src="${escapeHtml(src)}" alt="">` : escapeHtml(initials(name)); };
 const initials = (name) => String(name || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "M";
 const shortLabel = (tab) => ({ browse: "Browse", requests: "Requests", messages: "Messages", verify: "Verify", account: "Account" }[tab.key] || tab.label);
 
@@ -962,6 +964,16 @@ async function accountPanel(panel, data, demoKey, go) {
   const VERIFY_LABEL = { unverified: "Not verified yet", submitted: "Documents received", desk_checked: "Documents received", rejected: "Documents sent back", verified: "Verified" };
   panel.innerHTML = `
     <div class="panel-head"><div><span class="eyebrow">Account</span><h1>My account</h1><p class="lede">Your details with MKUYU and your password.</p></div></div>
+    <section class="account-card acc-photo">
+      <span class="avatar avatar--xl" data-photo-view aria-hidden="true">${avatarInner(c.name, c.photo_url)}</span>
+      <div class="acc-photo-text"><h2 class="panel-subhead">Profile picture</h2>
+        <p class="field-hint">A clear photo of your face helps our team recognise you. JPG or PNG, up to 10 MB.</p>
+        <div class="acc-photo-actions">
+          <label class="btn btn--primary btn--small">${icon("user")}<span>${c.photo_url ? "Change picture" : "Upload picture"}</span><input type="file" accept="image/png,image/jpeg" data-photo-input hidden></label>
+          ${c.photo_url ? `<button type="button" class="btn btn--soft btn--small" data-photo-remove>Remove</button>` : ""}
+        </div>
+        <p class="field-hint" data-photo-note role="status" aria-live="polite"></p></div>
+    </section>
     <section class="account-card">
       <h2 class="panel-subhead">Your details</h2>
       <dl class="kv">
@@ -972,7 +984,7 @@ async function accountPanel(panel, data, demoKey, go) {
           ${v.verified ? "" : ` <a href="#verify" data-goto="verify">Open verification</a>`}</dd>
         ${v.verified && v.nationality_confirmed === false ? `<dt>Nationality</dt><dd><span class="pill pill--pending">Legal is confirming</span></dd>` : ""}
       </dl>
-      <p class="field-hint">To change your name, e-mail or phone, write to your Diaspora Desk: these details are on your contracts, so MKUYU updates them for you.</p>
+      <p class="field-hint">To change your name, e-mail or phone, write to your MKUYU advisor: these details are on your contracts, so MKUYU updates them for you.</p>
     </section>
     <section class="account-card">
       <h2 class="panel-subhead">E-mail notices</h2>
@@ -987,6 +999,20 @@ async function accountPanel(panel, data, demoKey, go) {
       </div>
       <div data-result hidden role="status" aria-live="polite"></div>
     </section>`;
+  const photoNote = panel.querySelector("[data-photo-note]");
+  const photoDone = (url) => { data.customer = { ...(data.customer || {}), photo_url: url }; document.querySelectorAll(".avatar:not(.avatar--xl)").forEach((el) => { if (!el.closest(".chat")) el.innerHTML = avatarInner(c.name, url); }); go("account"); };
+  panel.querySelector("[data-photo-input]")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (demoKey) { photoNote.textContent = "Sample portal: nothing is saved."; return; }
+    if (file.size > 10 * 1024 * 1024) { photoNote.textContent = "This picture is too large (10 MB at most)."; return; }
+    photoNote.textContent = "Uploading…";
+    try { const r = await uploadProfilePhoto(file); photoDone(r.photo_url); }
+    catch (error) { photoNote.textContent = error.message || "The picture could not be uploaded."; }
+  });
+  panel.querySelector("[data-photo-remove]")?.addEventListener("click", async () => {
+    try { await removeProfilePhoto(); photoDone(null); } catch (error) { photoNote.textContent = error.message || "Could not remove."; }
+  });
   panel.querySelector("[data-notify]")?.addEventListener("change", async (event) => {
     const note = panel.querySelector("[data-notify-result]");
     if (demoKey) { note.textContent = "Sample portal: nothing is saved."; return; }
