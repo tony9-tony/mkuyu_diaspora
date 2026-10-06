@@ -1487,3 +1487,13 @@ img, video, svg { max-width: 100%; }
   .dh-photo, .dh-photo::after, .dh-rays, .dh-hero-inner > * { animation: none !important; }
   .dh-video { display: none; }
 }
+
+/* Sign in / sign up on computers: the page stays put and the form stays where it is.
+   If the form is taller than the window it scrolls inside its own column. */
+@media (min-width: 901px) {
+  body:has(.auth) { overflow: hidden; }
+  .auth { height: calc(100vh - var(--header-h)); height: calc(100dvh - var(--header-h)); min-height: 0; }
+  .auth-aside { overflow: hidden; min-height: 0; }
+  .auth-main { display: flex; overflow-y: auto; overscroll-behavior: contain; min-height: 0; scrollbar-width: thin; }
+  .auth-card { margin: auto; }
+}
