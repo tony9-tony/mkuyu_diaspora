@@ -494,15 +494,15 @@ async function verifyPanel(panel, show, { uploaded = null } = {}) {
     if (!box) return;
     const kind = form.kind.value;
     box.hidden = kind === "other" || kind === "selfie";
-    form.expires_on.required = kind === "passport";
-    box.querySelector("label").firstChild.textContent = kind === "residence" ? "Expiry date, if it has one " : "Expiry date shown on the document";
+    form.expires_on.required = kind === "passport" || kind === "residence";
+    box.querySelector("label").firstChild.textContent = kind === "residence" ? "Expiry date of your visa, residence card or permit " : "Expiry date shown on the document";
   };
   form?.kind.addEventListener("change", syncExpiry);
   syncExpiry();
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const file = form.file.files[0];
-    if (form.kind.value === "passport" && !form.expires_on.value) { form.expires_on.focus(); return; }
+    if (["passport", "residence"].includes(form.kind.value) && !form.expires_on.value) { form.expires_on.focus(); return; }
     const out = form.querySelector("[data-result]");
     if (!file) { out.hidden = false; out.innerHTML = `<p class="notice">${icon("info")}<span>Choose a file first.</span></p>`; return; }
     const button = form.querySelector("button");
