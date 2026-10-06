@@ -365,6 +365,14 @@ export async function currentCustomer() {
 }
 
 /** The adaptive portal: one account, sections for the services this customer uses. */
+/** The live stream: the server says "something changed", and the portal re-reads its own data. */
+export function openCustomerLive(onChange) {
+  if (!ACCOUNTS_LIVE || typeof EventSource === "undefined") return null;
+  const source = new EventSource(`${API_BASE}/customer/live`, { withCredentials: true });
+  source.addEventListener("change", onChange);
+  return source;
+}
+
 export async function getPortal() {
   if (!ACCOUNTS_LIVE) throw new NotConnectedError("The customer portal");
   return request("/customer/portal");

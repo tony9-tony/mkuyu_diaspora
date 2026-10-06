@@ -5,7 +5,7 @@
    Every stage, amount and document comes from the internal system; the portal
    only presents it. Where a business rule is still undecided, the data says
    so (see DEMO_PORTALS in data.js) instead of the portal inventing detail. */
-import { answerCall, endCall, startCall, setNotifyEmail, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
+import { openCustomerLive, answerCall, endCall, startCall, setNotifyEmail, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
 import { escapeHtml, formatMoney, icon, initReveal, photoPlaceholder } from "../ui.js";
 
 const SECTIONS = {
@@ -62,7 +62,7 @@ const verifiedTick = (v, { label = true } = {}) => v?.verified
 const scroller = () => { const m = document.getElementById("main"); return m && getComputedStyle(m).overflowY === "auto" ? m : null; };
 const scrollTopNow = (behavior = "smooth") => { const m = scroller(); if (m) m.scrollTo({ top: 0, behavior }); else window.scrollTo({ top: 0, behavior }); };
 const scrollPos = () => { const m = scroller(); return m ? m.scrollTop : window.scrollY; };
-const scrollRestore = (top) => { const m = scroller(); if (m) m.scrollTo({ top, behavior: "instant" }); else scrollRestore(top); };
+const scrollRestore = (top) => { const m = scroller(); if (m) m.scrollTo({ top, behavior: "instant" }); else window.scrollTo({ top, behavior: "instant" }); };
 
 /** Does this customer still have documents to send (or send again)? */
 const needsUpload = (v) => Boolean(v && !v.verified && (v.needs_upload ?? ["unverified", "rejected"].includes(v.status)));
@@ -93,9 +93,11 @@ function attentionBar(data) {
 
 function render(host, data, demoKey) {
   currentVerification = data.verification || { verified: true, nationality_confirmed: true };
-  const services = Object.keys(SECTIONS).filter((key) => (data.services?.[key] || []).length);
-  const needsVerify = data.verification && !data.verification.verified;
-  const groups = [
+  let services, groups, tabs, keys;
+  const compute = () => {
+    services = Object.keys(SECTIONS).filter((key) => (data.services?.[key] || []).length);
+    const needsVerify = data.verification && !data.verification.verified;
+    groups = [
     { label: "My MKUYU", tabs: [{ key: "overview", label: "Overview", icon: "grid" },
       ...services.map((key) => ({ key, label: SECTIONS[key].label, icon: SECTIONS[key].icon, count: data.services[key].length }))] },
     { label: "Find a property", tabs: [{ key: "browse", label: "Browse & request", icon: "search" },
@@ -104,10 +106,17 @@ function render(host, data, demoKey) {
       ...(needsVerify ? [{ key: "verify", label: "Verify my identity", icon: "shield", alert: needsUpload(data.verification) }] : []),
       { key: "account", label: "My account", icon: "user" }] },
   ];
-  const tabs = groups.flatMap((g) => g.tabs);
-  const keys = tabs.map((t) => t.key);
+    tabs = groups.flatMap((g) => g.tabs);
+    keys = tabs.map((t) => t.key);
+  };
+  compute();
   const name = data.customer?.name || "My MKUYU";
 
+  const navInner = () => `          <div class="portal-brand"><span class="avatar" aria-hidden="true">${avatarInner(name, data.customer?.photo_url)}</span><div><strong>${escapeHtml(name)}${verifiedTick(data.verification || { verified: true }, { label: false })}</strong><span>${data.diaspora ? "Diaspora customer" : "Customer"}${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span></div></div>
+          ${groups.filter((g) => g.tabs.length).map((g) => `<div class="portal-nav-group"><span class="portal-nav-label">${escapeHtml(g.label)}</span>
+            ${g.tabs.map((tab) => `<a href="#${tab.key}" id="tab-${tab.key}" data-tab="${tab.key}" class="${tab.alert ? "is-alert" : ""}">
+              ${icon(tab.icon)}<span>${escapeHtml(tab.label)}</span>${tab.count ? `<span class="count">${tab.count}</span>` : tab.alert ? `<span class="dot dot--alert" aria-label="Action needed"></span>` : ""}</a>`).join("")}</div>`).join("")}`;
+  const tabbarInner = () => `${tabs.map((tab) => `<a href="#${tab.key}" data-tab="${tab.key}">${icon(tab.icon)}<span>${escapeHtml(shortLabel(tab))}</span>${tab.alert ? '<span class="dot dot--alert" aria-hidden="true"></span>' : ""}</a>`).join("")}`;
   fillHeader(data, demoKey);
   host.innerHTML = `
     ${demoKey ? `<div class="demo-switch" role="note">${icon("info")}<span><strong>Sample portal.</strong> Invented customer, for review only. See another:</span>
@@ -116,22 +125,19 @@ function render(host, data, demoKey) {
       <aside class="portal-side">
         <a class="portal-logo" href="#overview" aria-label="MKUYU Diaspora Portal"><img src="assets/images/brand/mkuyu-logo-192.png" alt="" width="40" height="40" /><span><strong>MKUYU AFRICA</strong><small>Diaspora Portal</small></span></a>
         <nav class="portal-nav" aria-label="Portal sections">
-          <div class="portal-brand"><span class="avatar" aria-hidden="true">${avatarInner(name, data.customer?.photo_url)}</span><div><strong>${escapeHtml(name)}${verifiedTick(data.verification || { verified: true }, { label: false })}</strong><span>${data.diaspora ? "Diaspora customer" : "Customer"}${data.customer?.country ? ` · ${escapeHtml(data.customer.country)}` : ""}</span></div></div>
-          ${groups.filter((g) => g.tabs.length).map((g) => `<div class="portal-nav-group"><span class="portal-nav-label">${escapeHtml(g.label)}</span>
-            ${g.tabs.map((tab) => `<a href="#${tab.key}" id="tab-${tab.key}" data-tab="${tab.key}" class="${tab.alert ? "is-alert" : ""}">
-              ${icon(tab.icon)}<span>${escapeHtml(tab.label)}</span>${tab.count ? `<span class="count">${tab.count}</span>` : tab.alert ? `<span class="dot dot--alert" aria-label="Action needed"></span>` : ""}</a>`).join("")}</div>`).join("")}
+${navInner()}
         </nav>
         ${deskCard(data)}
       </aside>
       <div id="panel" class="portal-panel" tabindex="-1" aria-live="polite"></div>
     </div>
     <nav class="portal-tabbar" aria-label="Portal sections">
-      ${tabs.map((tab) => `<a href="#${tab.key}" data-tab="${tab.key}">${icon(tab.icon)}<span>${escapeHtml(shortLabel(tab))}</span>${tab.alert ? '<span class="dot dot--alert" aria-hidden="true"></span>' : ""}</a>`).join("")}
+${tabbarInner()}
     </nav>`;
 
   const panel = host.querySelector("#panel");
   watchMessagesBadge(demoKey);
-  const show = (key, { scroll = true } = {}) => {
+  const show = (key, { scroll = true, quiet = false } = {}) => {
     if (!keys.includes(key)) key = "overview";
     host.querySelectorAll("[data-tab]").forEach((a) => {
       const on = a.dataset.tab === key;
@@ -147,7 +153,7 @@ function render(host, data, demoKey) {
       panel.querySelectorAll("[data-sign]").forEach((button) => button.addEventListener("click", () => openAgreement(button.closest("[data-signing]"), button.dataset.sign, () => show(key))));
     };
     if (PANEL_SECTIONS.includes(key)) {
-      panel.innerHTML = `<div class="portal-loading" role="status"><span class="spinner" aria-hidden="true"></span>Loading…</div>`;
+      if (!quiet) panel.innerHTML = `<div class="portal-loading" role="status"><span class="spinner" aria-hidden="true"></span>Loading…</div>`;
       const loaders = { browse: () => browse(panel, demoKey, go, data), verify: () => verifyPanel(panel, go), requests: () => myRequests(panel, demoKey), messages: () => messagesPanel(panel, data, demoKey), account: () => accountPanel(panel, data, demoKey, go) };
       loaders[key]().then(() => { if (key !== "verify" && key !== "messages") panel.insertAdjacentHTML("afterbegin", attentionBar(data)); wire(); }).catch((error) => {
         panel.innerHTML = `<div class="empty"><h3>This could not be loaded</h3><p>${escapeHtml(error.message || "Please try again in a moment.")}</p><p><button type="button" class="btn btn--soft btn--small" data-retry>Try again</button></p></div>`;
@@ -165,11 +171,74 @@ function render(host, data, demoKey) {
     if (`#${key}` === window.location.hash) show(key);
     else window.location.hash = key;
   };
-  window.addEventListener("hashchange", () => show(window.location.hash.slice(1)));
+  if (hashHandler) window.removeEventListener("hashchange", hashHandler);
+  hashHandler = () => show(window.location.hash.slice(1));
+  window.addEventListener("hashchange", hashHandler);
   // portal.html?tab=sell (old links) still opens that section.
   const wanted = window.location.hash.slice(1) || new URLSearchParams(window.location.search).get("tab");
   show(keys.includes(wanted) ? wanted : "overview", { scroll: false });
+
+  /* ---- Live: staff change something, the customer sees it at once, without refreshing ---- */
+  const currentKey = () => { const k = window.location.hash.slice(1); return keys.includes(k) ? k : "overview"; };
+  const paintNav = () => {
+    host.querySelector(".portal-nav").innerHTML = navInner();
+    host.querySelector(".portal-tabbar").innerHTML = tabbarInner();
+    const k = currentKey();
+    host.querySelectorAll("[data-tab]").forEach((a) => { const on = a.dataset.tab === k; a.classList.toggle("is-active", on); if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    fillHeader(data, demoKey);
+  };
+  /** True while the customer is in the middle of something we must not redraw under their hands. */
+  const busy = (key) => {
+    if (key === "messages") return true; // the chat keeps itself fresh
+    const f = document.activeElement;
+    if (f && panel.contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return true;
+    if ([...panel.querySelectorAll("input[type=file]")].some((i) => i.files?.length)) return true;
+    if ([...panel.querySelectorAll("input[name=expires_on]")].some((i) => i.value)) return true;
+    return Boolean(panel.querySelector(".listing-form:not([hidden]) form, [data-agreement] .agreement-box, [data-sign-form]"));
+  };
+  let refreshing = false;
+  const refresh = async () => {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      let fresh;
+      try { fresh = await getPortal(); } catch { return; }
+      if (JSON.stringify(fresh) === JSON.stringify(data)) return;
+      const before = currentKey();
+      Object.keys(data).forEach((k) => delete data[k]);
+      Object.assign(data, fresh);
+      currentVerification = data.verification || currentVerification;
+      compute();
+      paintNav();
+      const key = currentKey();
+      if (key === before && busy(key)) {
+        // Mid-task: leave the page as it is, only refresh the "action needed" banner.
+        if (key !== "verify") {
+          const bar = panel.querySelector(".attention-bar"); const html = attentionBar(data);
+          if (bar && !html) bar.remove(); else if (bar) bar.outerHTML = html; else if (html) panel.insertAdjacentHTML("afterbegin", html);
+          panel.querySelectorAll(".attention-bar [data-goto]").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); go(a.dataset.goto); }));
+        }
+        return;
+      }
+      const top = scrollPos();
+      show(key, { scroll: false, quiet: true });
+      setTimeout(() => scrollRestore(top), 120);
+    } finally { refreshing = false; }
+  };
+  stopLive();
+  if (!demoKey && ACCOUNTS_LIVE) {
+    let timer;
+    const kick = () => { clearTimeout(timer); timer = setTimeout(refresh, 600); };
+    const source = openCustomerLive(kick);
+    const slow = setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+    const visible = () => { if (!document.hidden) refresh(); };
+    document.addEventListener("visibilitychange", visible);
+    liveStop = () => { source?.close(); clearInterval(slow); clearTimeout(timer); document.removeEventListener("visibilitychange", visible); };
+  }
 }
+let hashHandler = null;
+let liveStop = null;
+function stopLive() { if (liveStop) { liveStop(); liveStop = null; } }
 
 /** The portal's own header: who is signed in and how to sign out. No links out. */
 function fillHeader(data, demoKey) {
