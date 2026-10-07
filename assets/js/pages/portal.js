@@ -5,7 +5,7 @@
    Every stage, amount and document comes from the internal system; the portal
    only presents it. Where a business rule is still undecided, the data says
    so (see DEMO_PORTALS in data.js) instead of the portal inventing detail. */
-import { openCustomerLive, answerCall, endCall, startCall, setNotifyEmail, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
+import { openCustomerLive, answerCall, endCall, startCall, setNotifyEmail, setTwoFactor, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
 import { escapeHtml, formatMoney, icon, initReveal, photoPlaceholder } from "../ui.js";
 
 const SECTIONS = {
@@ -1096,6 +1096,11 @@ async function accountPanel(panel, data, demoKey, go) {
       <p class="field-hint" data-notify-result role="status" aria-live="polite"></p>
     </section>
     <section class="account-card">
+      <h2 class="panel-subhead">Extra sign-in security</h2>
+      <label class="check-row"><input type="checkbox" data-twofactor ${data.prefs?.two_factor ? "checked" : ""} ${data.prefs?.two_factor_available === false && !data.prefs?.two_factor ? "disabled" : ""}> <span>Ask for a 6-digit code from my e-mail every time I sign in, as well as my password.</span></label>
+      <p class="field-hint" data-twofactor-result role="status" aria-live="polite">${data.prefs?.two_factor_available === false && !data.prefs?.two_factor ? "Not available yet: MKUYU has not switched on e-mail sending." : "Recommended: your account holds your property and payment records."}</p>
+    </section>
+    <section class="account-card">
       <h2 class="panel-subhead">Password</h2>
       <p>We send a 6-digit code to <strong>${escapeHtml(c.email || "your e-mail")}</strong>. Enter it here with your new password.</p>
       <div data-pw>
@@ -1121,6 +1126,12 @@ async function accountPanel(panel, data, demoKey, go) {
     const note = panel.querySelector("[data-notify-result]");
     if (demoKey) { note.textContent = "Sample portal: nothing is saved."; return; }
     try { await setNotifyEmail(event.target.checked); note.textContent = event.target.checked ? "You will receive e-mail notices." : "E-mail notices are off. You will still see everything in your portal."; }
+    catch (error) { event.target.checked = !event.target.checked; note.textContent = error.message || "Could not save."; }
+  });
+  panel.querySelector("[data-twofactor]")?.addEventListener("change", async (event) => {
+    const note = panel.querySelector("[data-twofactor-result]");
+    if (demoKey) { event.target.checked = !event.target.checked; note.textContent = "Sample portal: nothing is saved."; return; }
+    try { await setTwoFactor(event.target.checked); note.textContent = event.target.checked ? "On. Next time you sign in we will e-mail you a code." : "Off. You sign in with your password only."; }
     catch (error) { event.target.checked = !event.target.checked; note.textContent = error.message || "Could not save."; }
   });
   const box = panel.querySelector("[data-pw]");

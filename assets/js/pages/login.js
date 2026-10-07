@@ -2,7 +2,7 @@
    The e-mailed code is used only by "Forgot password or first time here?"
    (a customer MKUYU invited sets their password that way). The session is an
    HttpOnly cookie this script never sees. */
-import { NotConnectedError, currentCustomer, passwordLogin, requestCode, resetPassword } from "../api.js";
+import { NotConnectedError, currentCustomer, passwordLogin, requestCode, resetPassword, verifyLoginCode } from "../api.js";
 import { safeNext, showFormResult } from "../ui.js";
 
 export default async function login() {
@@ -13,18 +13,18 @@ export default async function login() {
   const submit = form.querySelector("button[type=submit]");
   const field = (mode) => form.querySelector(`[data-mode="${mode}"]`);
   const idLabel = form.querySelector("[data-id-label]");
-  let mode = "password"; // password | forgot-ask | forgot
+  let mode = "password"; // password | forgot-ask | forgot | twofactor
 
   if (await currentCustomer().catch(() => null)) { window.location.replace(next); return; }
 
   const setMode = (value) => {
     mode = value;
     field("password").hidden = mode !== "password";
-    field("code").hidden = mode !== "forgot";
+    field("code").hidden = mode !== "forgot" && mode !== "twofactor";
     field("newpass").hidden = mode !== "forgot";
     idLabel.textContent = mode === "password" ? "Username or e-mail" : "Your e-mail";
-    form.email.readOnly = mode === "forgot";
-    submit.textContent = { password: "Sign in", "forgot-ask": "Send me a code", forgot: "Save password and sign in" }[mode];
+    form.email.readOnly = mode === "forgot" || mode === "twofactor";
+    submit.textContent = { password: "Sign in", "forgot-ask": "Send me a code", forgot: "Save password and sign in", twofactor: "Verify and sign in" }[mode];
     form.querySelector('[data-switch="password"]').hidden = mode === "password";
     form.querySelector('[data-switch="forgot"]').hidden = mode !== "password";
   };
@@ -42,7 +42,15 @@ export default async function login() {
     submit.disabled = true;
     try {
       if (mode === "password") {
-        await passwordLogin(identifier, form.password.value);
+        const answer = await passwordLogin(identifier, form.password.value);
+        if (answer?.needs_code) {
+          showFormResult(result, "info", "Check your e-mail", answer.message || "Enter the code we e-mailed you.");
+          setMode("twofactor");
+          form.code.value = "";
+          form.code.focus();
+        } else window.location.assign(next);
+      } else if (mode === "twofactor") {
+        await verifyLoginCode(identifier, form.code.value.replace(/\D/g, ""));
         window.location.assign(next);
       } else if (mode === "forgot-ask") {
         const answer = await requestCode(identifier);

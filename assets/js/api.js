@@ -257,6 +257,13 @@ export async function passwordLogin(identifier, password) {
   if (!ACCOUNTS_LIVE) throw new NotConnectedError("Signing in");
   return request("/customer/auth/login", { method: "POST", body: { identifier, password } });
 }
+/** Step two for customers who switched on the sign-in code. */
+export async function verifyLoginCode(identifier, code) {
+  return request("/customer/auth/login-verify", { method: "POST", body: { identifier, code } });
+}
+export async function setTwoFactor(on) {
+  return request("/customer/preferences", { method: "POST", body: { two_factor: Boolean(on) } });
+}
 /** Forgot password: the code from requestCode() plus a new password. */
 export async function resetPassword(email, code, password) {
   return request("/customer/auth/reset-password", { method: "POST", body: { email, code, password } });
