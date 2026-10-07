@@ -5,7 +5,7 @@
    Every stage, amount and document comes from the internal system; the portal
    only presents it. Where a business rule is still undecided, the data says
    so (see DEMO_PORTALS in data.js) instead of the portal inventing detail. */
-import { openCustomerLive, answerCall, endCall, startCall, setNotifyEmail, setTwoFactor, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
+import { openCustomerLive, answerCall, endCall, startCall, setNotifyEmail, setTwoFactor, ACCOUNTS_LIVE, DEMO_PORTAL_KEYS, canRequest, currentCustomer, getAgreement, signAgreement, customerFileUrl, uploadProfilePhoto, removeProfilePhoto, demoPortal, getPortal, deleteMessage, editMessage, getMessages, getPortalRequests, getVerification, getInvoices, getPaymentDetails, uploadInvoiceProof, pollMessages, reactToMessage, sendMessage, sendTyping, listProperties, logOut, requestCode, resetPassword, submitPortalRequest, uploadVerificationDocument } from "../api.js";
 import { escapeHtml, formatMoney, icon, initReveal, photoPlaceholder } from "../ui.js";
 
 const SECTIONS = {
@@ -48,7 +48,7 @@ export default async function portal() {
 /* Everything a customer does happens on this one page. Sections are kept in
    the address (#overview, #buy, #browse…) so the browser's Back button moves
    between sections instead of leaving the portal. */
-const PANEL_SECTIONS = ["browse", "requests", "messages", "verify", "account"];
+const PANEL_SECTIONS = ["browse", "requests", "messages", "verify", "account", "invoices"];
 
 let currentVerification = { verified: true, nationality_confirmed: true };
 /** The tick shown next to a verified customer's name. */
@@ -97,13 +97,16 @@ function render(host, data, demoKey) {
   const compute = () => {
     services = Object.keys(SECTIONS).filter((key) => (data.services?.[key] || []).length);
     const needsVerify = data.verification && !data.verification.verified;
+    // A Tanzanian customer (invited for their invoices) sees no diaspora-only parts.
+    const diaspora = data.diaspora !== false;
     groups = [
     { label: "My MKUYU", tabs: [{ key: "overview", label: "Overview", icon: "grid" },
+      { key: "invoices", label: "Invoices", icon: "card", count: data.invoices_open || 0 },
       ...services.map((key) => ({ key, label: SECTIONS[key].label, icon: SECTIONS[key].icon, count: data.services[key].length }))] },
-    { label: "Find a property", tabs: [{ key: "browse", label: "Browse & request", icon: "search" },
-      { key: "requests", label: "My requests", icon: "file", count: data.requests_open || 0 }] },
-    { label: "Account", tabs: [{ key: "messages", label: "Messages", icon: "chat", count: data.messages_unread || 0 },
-      ...(needsVerify ? [{ key: "verify", label: "Verify my identity", icon: "shield", alert: needsUpload(data.verification) }] : []),
+    ...(diaspora ? [{ label: "Find a property", tabs: [{ key: "browse", label: "Browse & request", icon: "search" },
+      { key: "requests", label: "My requests", icon: "file", count: data.requests_open || 0 }] }] : []),
+    { label: "Account", tabs: [...(diaspora ? [{ key: "messages", label: "Messages", icon: "chat", count: data.messages_unread || 0 }] : []),
+      ...(needsVerify && diaspora ? [{ key: "verify", label: "Verify my identity", icon: "shield", alert: needsUpload(data.verification) }] : []),
       { key: "account", label: "My account", icon: "user" }] },
   ];
     tabs = groups.flatMap((g) => g.tabs);
@@ -154,7 +157,7 @@ ${tabbarInner()}
     };
     if (PANEL_SECTIONS.includes(key)) {
       if (!quiet) panel.innerHTML = `<div class="portal-loading" role="status"><span class="spinner" aria-hidden="true"></span>Loading…</div>`;
-      const loaders = { browse: () => browse(panel, demoKey, go, data), verify: () => verifyPanel(panel, go), requests: () => myRequests(panel, demoKey), messages: () => messagesPanel(panel, data, demoKey), account: () => accountPanel(panel, data, demoKey, go) };
+      const loaders = { browse: () => browse(panel, demoKey, go, data), verify: () => verifyPanel(panel, go), requests: () => myRequests(panel, demoKey), messages: () => messagesPanel(panel, data, demoKey), account: () => accountPanel(panel, data, demoKey, go), invoices: () => invoicesPanel(panel, demoKey, go) };
       loaders[key]().then(() => { if (key !== "verify" && key !== "messages") panel.insertAdjacentHTML("afterbegin", attentionBar(data)); wire(); }).catch((error) => {
         panel.innerHTML = `<div class="empty"><h3>This could not be loaded</h3><p>${escapeHtml(error.message || "Please try again in a moment.")}</p><p><button type="button" class="btn btn--soft btn--small" data-retry>Try again</button></p></div>`;
         panel.querySelector("[data-retry]").addEventListener("click", () => show(key));
@@ -257,7 +260,7 @@ function fillHeader(data, demoKey) {
 /** The customer's picture when they have one, otherwise their initials. */
 const avatarInner = (name, url) => { const src = customerFileUrl(url); return src ? `<img src="${escapeHtml(src)}" alt="">` : escapeHtml(initials(name)); };
 const initials = (name) => String(name || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "M";
-const shortLabel = (tab) => ({ browse: "Browse", requests: "Requests", messages: "Messages", verify: "Verify", account: "Account" }[tab.key] || tab.label);
+const shortLabel = (tab) => ({ browse: "Browse", requests: "Requests", messages: "Messages", verify: "Verify", account: "Account", invoices: "Invoices" }[tab.key] || tab.label);
 
 /** Who to talk to. Always beside the content, so help is never more than a glance away. */
 function deskCard(data) {
@@ -312,7 +315,7 @@ function overview(data, services) {
         <h1>${hello}${firstName ? `, ${escapeHtml(firstName)}` : ""}</h1>
         <p class="lede">${escapeHtml(lede)}</p>
         <div class="ov-chips">
-          ${data.verification?.verified ? `<span class="ov-chip ov-chip--ok">${icon("check")} Identity verified</span>` : `<span class="ov-chip">${icon("clock")} Verification pending</span>`}
+          ${data.diaspora === false ? "" : data.verification?.verified ? `<span class="ov-chip ov-chip--ok">${icon("check")} Identity verified</span>` : `<span class="ov-chip">${icon("clock")} Verification pending</span>`}
           <span class="ov-chip">${icon("clock")} East Africa Time</span>
         </div>
       </div>
@@ -320,17 +323,17 @@ function overview(data, services) {
     </section>
 
     <div class="ov-kpis">
-      ${kpi("browse", "search", cases.length, cases.length === 1 ? "Property" : "Properties")}
+      ${kpi("invoices", "card", data.invoices_open || 0, "Invoices to pay")}
+      ${data.diaspora !== false ? `${kpi("browse", "search", cases.length, cases.length === 1 ? "Property" : "Properties")}
       ${kpi("requests", "file", data.requests_open || 0, "Open requests")}
-      ${kpi("messages", "chat", data.messages_unread || 0, "Unread messages")}
-      ${kpi(data.verification?.verified ? "account" : "verify", "shield", data.verification?.verified ? "Verified" : "Pending", "Identity")}
+      ${kpi("messages", "chat", data.messages_unread || 0, "Unread messages")}` : kpi("account", "user", cases.length, cases.length === 1 ? "Property" : "Properties")}
     </div>
 
     <div class="ov-grid">
       <div class="ov-main">
         ${nextStep(data, cases)}
         ${data.diaspora ? diasporaJourney(data, cases) : ""}
-        ${unused.length ? `<section><h2 class="panel-subhead">${cases.length ? "Looking for something else?" : "Start here"}</h2>
+        ${unused.length && data.diaspora !== false ? `<section><h2 class="panel-subhead">${cases.length ? "Looking for something else?" : "Start here"}</h2>
           <div class="start-grid">${unused.map((key) => `<a class="start-tile" href="#browse" data-goto="browse" data-service="${key}">
             <span class="feature-icon">${icon(SECTIONS[key].icon)}</span><strong>${escapeHtml(SECTIONS[key].start)}</strong><span>${escapeHtml(SECTIONS[key].startText)}</span></a>`).join("")}
           </div></section>` : ""}
@@ -368,6 +371,9 @@ function nextStep(data, cases) {
       text: `${v.message || ""}${v.note ? ` Note from MKUYU: ${v.note}` : ""}`, go: "verify", cta: "Upload documents" };
   } else if (toSign) {
     step = { tone: "action", icon: "file", title: "Your agreement is ready to sign", text: `${toSign.item.property.title}: read every clause, then sign electronically. Nothing is final until you sign.`, go: toSign.key, cta: "Read and sign" };
+  } else if (Number(data.invoices_open || 0) > 0) {
+    step = { tone: "action", icon: "card", title: data.invoices_open === 1 ? "An invoice is waiting for payment" : `${data.invoices_open} invoices are waiting for payment`,
+      text: "Press Pay now on the invoice for MKUYU's payment details. After paying, send your receipt or the payment message there.", go: "invoices", cta: "Open invoices" };
   } else if (due.some((d) => d.overdue)) {
     const d = due.find((x) => x.overdue);
     step = { tone: "alert", icon: "card", title: "A payment is overdue", text: `${d.item.property.title}: ${formatMoney(d.item.payments.next_due.amount, d.item.payments.currency, { exact: true })}. Please pay to MKUYU's official account, or talk to your MKUYU advisor.`, go: d.key, cta: "See payments" };
@@ -376,6 +382,8 @@ function nextStep(data, cases) {
     step = { tone: "calm", icon: "card", title: `Next payment due ${d.item.payments.next_due.date}`, text: `${d.item.property.title}: ${formatMoney(d.item.payments.next_due.amount, d.item.payments.currency, { exact: true })}. Your receipt appears here once Finance confirms it.`, go: d.key, cta: "See payments" };
   } else if (!v.verified) {
     step = { tone: "calm", icon: "clock", title: "We are checking your documents", text: `${v.message || ""} Requests open as soon as you are verified; meanwhile you can look at every property.`, go: "browse", cta: "Look at properties" };
+  } else if (!cases.length && data.diaspora === false) {
+    step = { tone: "calm", icon: "clock", title: "Your contract is being prepared", text: "It appears here as soon as MKUYU prepares it, with every payment and receipt.", go: null };
   } else if (!cases.length && !data.requests_open) {
     step = { tone: "action", icon: "search", title: "Choose your property", text: "Browse what MKUYU has available and press Request. We already have your details.", go: "browse", cta: "Browse properties" };
   } else if (!cases.length) {
@@ -1059,6 +1067,95 @@ async function myRequests(panel, demoKey) {
         ${r.location ? `<small>${escapeHtml(r.location)}</small>` : ""}
         <p class="request-status">${escapeHtml(r.status)}</p>
         <small class="request-meta">Ref ${escapeHtml(r.reference)} · sent ${escapeHtml(r.date || "")}</small></li>`).join("")}</ul>` : `<div class="empty"><h3>No request yet</h3><p>Browse MKUYU's properties and press Request on any of them.</p><p><a class="btn btn--primary btn--small" href="#browse" data-goto="browse">Browse properties ${icon("arrow")}</a></p></div>`}`;
+}
+
+/* ---------------- Invoices: Pay now, then send the proof ----------------
+   MKUYU Finance raises an invoice before the contract. "Pay now" shows MKUYU's
+   payment details (with copy buttons) and the reference to quote. The customer
+   pays outside the portal, comes back and uploads the receipt or message.
+   Finance accepts it ("you paid this") or sends it back with a reason. */
+const INVOICE_PILL = { not_paid: "pending", proof_uploaded: "pending", partly_paid: "pending", paid: "paid", overdue: "overdue", rejected: "overdue" };
+const PROOF_TEXT = { pending: "Waiting for MKUYU Finance", accepted: "Accepted", rejected: "Not accepted" };
+
+function copyButton(value, label) {
+  return `<button type="button" class="btn btn--soft btn--small" data-copy="${escapeHtml(String(value))}" aria-label="Copy ${escapeHtml(label)}">${icon("file")} Copy</button>`;
+}
+
+function paymentDetailsHtml(details, invoice) {
+  if (!details.length) return `<p class="notice">${icon("info")}<span>MKUYU's payment details are not available yet. Please contact your MKUYU advisor.</span></p>`;
+  const row = (label, value) => (value ? `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)} ${copyButton(value, label)}</dd>` : "");
+  return `<p class="notice">${icon("shield")}<span><strong>Quote this reference when you pay: ${escapeHtml(invoice.reference)}</strong> ${copyButton(invoice.reference, "reference")}<br>Pay only to the MKUYU accounts below. MKUYU never asks you to pay a person.</span></p>
+    ${details.map((d) => `<section class="account-card" style="margin-top:.8rem"><h3>${escapeHtml(d.kind === "bank" ? d.bank_name || "Bank" : d.network || "Mobile money")}</h3>
+      <dl class="kv">${d.kind === "bank" ? row("Account name", d.account_name) + row("Account number", d.account_number) + row("Branch", d.branch) + row("SWIFT code", d.swift_code) : row("Name", d.account_name) + row("Number", d.account_number)}</dl></section>`).join("")}`;
+}
+
+function proofForm(invoice, details) {
+  const options = details.map((d) => `<option value="${d.id}" data-kind="${d.kind}">${escapeHtml(d.kind === "bank" ? `${d.bank_name || "Bank"} · ${d.account_number}` : `${d.network || "Mobile money"} · ${d.account_number}`)}</option>`).join("");
+  return `<form class="panel listing-form" data-proof="${invoice.id}" novalidate style="margin-top:1rem">
+    <h3>After paying: send your proof</h3>
+    <div class="form-grid">
+      <div class="field full"><label>Which MKUYU account did you pay into?<select name="detail_id" required>${options}</select></label></div>
+      <div class="field"><label>Transaction ID (from the bank receipt or message)<input name="transaction_id" required maxlength="80" autocomplete="off"></label></div>
+      <div class="field"><label>Amount paid (TZS)<input name="amount" type="number" min="1" step="any" required value="${escapeHtml(String(invoice.balance || invoice.amount))}"></label></div>
+      <div class="field"><label>Date you paid<input name="paid_on" type="date" required max="${new Date().toISOString().slice(0, 10)}" value="${new Date().toISOString().slice(0, 10)}"></label></div>
+      <div class="field"><label>Receipt: photo, screenshot or PDF<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"></label></div>
+      <div class="field full"><label>Or paste the payment message (SMS)<textarea name="sms_text" rows="3" maxlength="4000"></textarea></label></div>
+    </div>
+    <button class="btn btn--primary" type="submit">Send proof</button>
+    <p class="field-hint">Send a receipt file, the message, or both. Each transaction can be sent only once.</p>
+    <div data-result hidden role="status" aria-live="polite"></div>
+  </form>`;
+}
+
+async function invoicesPanel(panel, demoKey, go, { sent = "" } = {}) {
+  const [invoices, details] = demoKey ? [[], []] : await Promise.all([getInvoices(), getPaymentDetails()]);
+  const card = (inv) => `<li class="request-card" data-invoice="${inv.id}">
+      <div class="request-top"><strong>${escapeHtml(inv.purpose)}${inv.property ? ` · ${escapeHtml(inv.property)}` : ""}</strong><span class="pill pill--${INVOICE_PILL[inv.status] || "pending"}">${escapeHtml(inv.status_label)}</span></div>
+      <dl class="kv"><dt>Amount</dt><dd>${escapeHtml(formatMoney(inv.amount, "TZS", { exact: true }))}</dd>
+        <dt>Paid</dt><dd>${escapeHtml(formatMoney(inv.received, "TZS", { exact: true }))}</dd>
+        <dt>Balance</dt><dd>${escapeHtml(formatMoney(inv.balance, "TZS", { exact: true }))}</dd>
+        <dt>Due</dt><dd>${escapeHtml(inv.due || "")}${inv.overdue && inv.status !== "paid" ? " · overdue" : ""}</dd>
+        <dt>Reference</dt><dd>${escapeHtml(inv.reference)}</dd></dl>
+      ${inv.note ? `<p class="request-status">${escapeHtml(inv.note)}</p>` : ""}
+      ${inv.status === "rejected" && inv.reject_reason ? `<p class="notice">${icon("info")}<span><strong>Your last proof was not accepted:</strong> ${escapeHtml(inv.reject_reason)}</span></p>` : ""}
+      ${inv.status === "proof_uploaded" ? `<p class="notice">${icon("clock")}<span>MKUYU Finance is checking your payment. You will see the result here.</span></p>` : ""}
+      ${inv.proofs.length ? `<ol class="history-feed">${inv.proofs.map((p) => `<li><strong>${escapeHtml(formatMoney(p.amount, "TZS", { exact: true }))} · ${escapeHtml(PROOF_TEXT[p.status] || p.status)}</strong><small>${escapeHtml(p.transaction_id)} · paid ${escapeHtml(p.paid_on || "")}</small>${p.reject_reason ? `<span>${escapeHtml(p.reject_reason)}</span>` : ""}${p.receipt_url ? `<span><a href="${escapeHtml(customerFileUrl(p.receipt_url) || "#")}" target="_blank" rel="noopener">Receipt ${escapeHtml(p.receipt_number || "")}</a></span>` : ""}</li>`).join("")}</ol>` : ""}
+      ${inv.can_pay ? `<p><button type="button" class="btn btn--primary btn--small" data-pay="${inv.id}">${icon("card")} Pay now</button></p><div data-pay-box="${inv.id}" hidden></div>` : ""}
+    </li>`;
+  panel.innerHTML = `<div class="portal-greeting"><span class="eyebrow">My MKUYU</span><h1>Invoices</h1>
+      <p class="lede" style="margin:0">What MKUYU asks you to pay before your contract. Press Pay now for MKUYU's payment details, pay, then send your proof here.</p></div>
+    ${sent ? `<p class="notice notice--ok" data-sent tabindex="-1">${icon("check")}<span><strong>${escapeHtml(sent)}</strong></span></p>` : ""}
+    ${invoices.length ? `<ul class="request-list">${invoices.map(card).join("")}</ul>` : `<div class="empty"><h3>No invoice</h3><p>When MKUYU asks you for a payment, it appears here with a Pay now button.</p></div>`}`;
+  panel.querySelector("[data-sent]")?.focus({ preventScroll: true });
+  panel.querySelectorAll("[data-pay]").forEach((button) => button.addEventListener("click", () => {
+    const invoice = invoices.find((row) => String(row.id) === button.dataset.pay);
+    const box = panel.querySelector(`[data-pay-box="${button.dataset.pay}"]`);
+    box.hidden = !box.hidden;
+    if (box.hidden) return;
+    box.innerHTML = paymentDetailsHtml(details, invoice) + (details.length ? proofForm(invoice, details) : "");
+    box.querySelectorAll("[data-copy]").forEach((copy) => copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(copy.dataset.copy); copy.textContent = "Copied"; } catch { copy.textContent = copy.dataset.copy; }
+    }));
+    const form = box.querySelector("[data-proof]");
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const out = form.querySelector("[data-result]");
+      const say = (text) => { out.hidden = false; out.innerHTML = `<p class="notice">${icon("info")}<span>${escapeHtml(text)}</span></p>`; };
+      if (!form.transaction_id.value.trim()) { form.transaction_id.focus(); return say("Enter the transaction ID."); }
+      if (!form.file.files.length && form.sms_text.value.trim().length < 10) return say("Add the receipt file or paste the payment message.");
+      const body = new FormData(form);
+      body.append("method", form.detail_id.selectedOptions[0]?.dataset.kind || "bank");
+      if (!form.file.files.length) body.delete("file");
+      const submit = form.querySelector("button[type=submit]");
+      submit.disabled = true; submit.textContent = "Sending…";
+      try {
+        const result = await uploadInvoiceProof(invoice.id, body);
+        const top = scrollPos();
+        await invoicesPanel(panel, demoKey, go, { sent: result?.message || "Thank you. MKUYU Finance will check your payment." });
+        scrollRestore(top);
+      } catch (error) { say(error.message || "Your proof could not be sent."); submit.disabled = false; submit.textContent = "Send proof"; }
+    });
+  }));
 }
 
 /* ---------------- My account ---------------- */

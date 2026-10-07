@@ -346,6 +346,22 @@ export async function getPortalRequests() {
   return request("/customer/requests");
 }
 
+/** Invoices MKUYU Finance raised for this customer, with their status and the proof sent. */
+export async function getInvoices() {
+  if (!ACCOUNTS_LIVE) return [];
+  return request("/customer/invoices");
+}
+/** MKUYU's bank and mobile-money details shown on "Pay now". */
+export async function getPaymentDetails() {
+  if (!ACCOUNTS_LIVE) return [];
+  return request("/customer/payment-details");
+}
+/** Proof of a payment made outside the system: receipt file and/or pasted message, transaction ID, amount, date. */
+export async function uploadInvoiceProof(invoiceId, form) {
+  if (!ACCOUNTS_LIVE) throw new NotConnectedError("Sending payment proof");
+  return request(`/customer/invoices/${encodeURIComponent(invoiceId)}/proof`, { method: "POST", body: form });
+}
+
 /** Full address of a portal file (receipt, signed agreement, construction photo). */
 export function customerFileUrl(path) {
   return path && path.startsWith("/customer/") ? `${API_BASE}${path}` : null;
